@@ -1,0 +1,140 @@
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import numpy as np
+import os
+import PIL
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.preprocessing import image
+
+import pathlib
+dataset_url = "https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz"
+data_dir = tf.keras.utils.get_file('flower_photos', origin=dataset_url, untar=True)
+data_dir = pathlib.Path(data_dir)
+
+image_count = len(list(data_dir.glob('*/*.jpg')))
+print(image_count)
+
+roses = list(data_dir.glob('roses/*'))
+print(roses[1])
+PIL.Image.open(str(roses[1]))
+
+img_height = 200
+img_width = 200
+batch_size = 32
+train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+data_dir,
+    #validation_split = 0.2,
+    #subset = "training",
+    #seed = 123,
+    image_size =(img_height, img_width),
+    batch_size = batch_size
+)
+
+val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    data_dir,
+    #validation_split = 0.2,
+    #subset="validation",
+   # seed = 123,
+    image_size=(img_height, img_width),
+    batch_size = batch_size
+)
+
+#Found 3670 files belonging to 5 classes.
+
+class_names = train_ds.class_names
+print(class_names)
+
+
+#['daisy', 'dandelion', 'roses', 'sunflowers', 'tulips']
+
+plt.figure(figsize= (10,10))
+for images, labels in train_ds.take(1):
+    for i in range(9):
+        ax = plt.subplot(3,3, i+1)
+        plt.imshow(images[i].numpy().astype("uint8"))
+        plt.title(class_names[labels[i]])
+        plt.axis("off")
+
+
+
+model = tf.keras.models.Sequential([
+    layers.experimental.preprocessing.Rescaling(1./255, input_shape = (img_height, img_width,3)),
+    layers.Conv2D(16, 3, padding="same", activation ="relu"),
+    layers.MaxPooling2D(),
+    layers.Conv2D(32, 3, padding= "same", activation="relu"),
+    layers.MaxPooling2D(),
+    layers.Conv2D(64, 3, padding= "same", activation="relu"),
+    layers.MaxPooling2D(),
+    layers.Flatten(),
+    layers.Dense(128, activation="relu"),
+    layers.Dense(5, activation="softmax")
+    
+    
+])
+
+
+model.compile(loss= keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+              optimizer = keras.optimizers.Adam(lr = 0.001),
+              metrics=['accuracy'])
+
+
+
+epochs=10
+
+history = model.fit(
+  train_ds,
+  validation_data=val_ds,
+  epochs=epochs
+)
+
+Epoch 1/10
+115/115 [==============================] - 51s 159ms/step - loss: 1.4700 - accuracy: 0.3956 - val_loss: 1.0666 - val_accuracy: 0.5659
+Epoch 2/10
+115/115 [==============================] - 18s 158ms/step - loss: 0.9750 - accuracy: 0.6205 - val_loss: 0.7505 - val_accuracy: 0.7136
+Epoch 3/10
+115/115 [==============================] - 18s 156ms/step - loss: 0.7762 - accuracy: 0.6971 - val_loss: 0.5461 - val_accuracy: 0.8112
+Epoch 4/10
+115/115 [==============================] - 19s 159ms/step - loss: 0.5944 - accuracy: 0.7841 - val_loss: 0.4162 - val_accuracy: 0.8512
+Epoch 5/10
+115/115 [==============================] - 18s 157ms/step - loss: 0.3456 - accuracy: 0.8856 - val_loss: 0.1881 - val_accuracy: 0.9417
+Epoch 6/10
+115/115 [==============================] - 18s 158ms/step - loss: 0.2219 - accuracy: 0.9208 - val_loss: 0.1146 - val_accuracy: 0.9643
+Epoch 7/10
+115/115 [==============================] - 19s 158ms/step - loss: 0.1134 - accuracy: 0.9676 - val_loss: 0.0334 - val_accuracy: 0.9946
+Epoch 8/10
+115/115 [==============================] - 18s 157ms/step - loss: 0.0627 - accuracy: 0.9814 - val_loss: 0.0448 - val_accuracy: 0.9886
+Epoch 9/10
+115/115 [==============================] - 18s 155ms/step - loss: 0.0404 - accuracy: 0.9905 - val_loss: 0.0434 - val_accuracy: 0.9877
+Epoch 10/10
+115/115 [==============================] - 19s 158ms/step - loss: 0.0430 - accuracy: 0.9887 - val_loss: 0.0346 - val_accuracy: 0.9913
+
+
+
+!pip install gradio
+
+import gradio as gr
+
+
+def predict_image(img):
+  img_3d =img.reshape(-1,200,200,3)
+  prediction = model.predict(img_3d)[0]
+  return {class_names[i]: float(prediction[i]) for i in range(5)}
+
+
+
+image = gr.inputs.Image(shape=(200,200))
+label = gr.outputs.Label(num_top_classes=5)
+gr.Interface(fn = predict_image, inputs=image, outputs=label, capture_session=True).launch(debug='true')
+
+
+#Colab notebook detected. This cell will run indefinitely so that you can see errors and logs. To turn off, set debug=False in launch().
+This share link will expire in 24 hours. If you need a permanent link, visit: https://gradio.app/introducing-hosted (NEW!)
+Running on External URL: https://47376.gradio.app
+Interface loading below...
+
+
+
+
